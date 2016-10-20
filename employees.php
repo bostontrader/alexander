@@ -112,39 +112,6 @@ class Salesperson extends Employee implements CommissionEarner  {
   }
 }
 
-
-
-
-
-$pd = new PayrollDepartment();
-$db = new Database();
-
-$error_cnt = 0;
-$error_cnt += calculateAndVerifySalary(1, 8000, $pd, $db); // employee_id 1 is expected to have a salary of 8000
-$error_cnt += calculateAndVerifySalary(2, 12000, $pd, $db);
-$error_cnt += calculateAndVerifySalary(3, 6000, $pd, $db);
-if($error_cnt == 0) {print "Tests complete. No errors.";}
-
-/**
- * This function will compute the salary of a given employee_id and compare that
- * with an expectedResult.  It will also need a payrollDepartment and db as injected dependencies
- * to do its job.
- *
- * @param $employee_id
- * @param $expectedResult
- * @param $payrollDepartment
- * @param $db
- * @return 0 if the salary is computed as expected, else 1.
- */
-function calculateAndVerifySalary($employee_id, $expectedResult, $payrollDepartment, $db) {
-  $result = $payrollDepartment->calculateSalary($employee_id, $db);
-  if($result != $expectedResult) {
-    print "Error: calculateSalary($employee_id) sb $expectedResult, but instead it is $result\n";
-    return 1;
-  }
-  return 0;
-}
-
 /**
  * This class encapsulates information required to build an SQL statement that will retrieve
  * the single row, from the db, for a given employee_id.
@@ -233,24 +200,56 @@ class Database {
  */
 class PayrollDepartment {
 
+  // We need a db/connection to get employee info.
+  private $db;
+
+  public function __construct($db) {
+    $this->db = $db;
+  }
+
+  /**
+   * This function will compute the salary of a given employee_id and compare that
+   * with an expectedResult.
+   *
+   * @param $employee_id
+   * @param $expectedResult
+   * @return 0 if the salary is computed as expected, else 1.
+   */
+  function calculateAndVerifySalary($employee_id, $expectedResult) {
+    $result = $this->calculateSalary($employee_id);
+    if($result != $expectedResult) {
+      print "Error: calculateSalary($employee_id) sb $expectedResult, but instead it is $result\n";
+      return 1;
+    }
+    return 0;
+  }
+
   /**
    * Calculate an employee's pay.  Build a suitable query for the $db, invoke the query to retrieve
    * an employee object, and then ask that object to calculate its pay.
    *
    * @param $employee_id
-   * @param $db The db
    * @return the pay amount.
    */
-  public function calculateSalary($employee_id, $db) {
+  public function calculateSalary($employee_id) {
 
     $sql = new SQLSelectEmployee(
         "select * from employee as e left join employee_type as et on e.employee_type_id = et.id where e.id = $employee_id",
         $employee_id
     );
 
-    $employee = $db::GetRow($sql);
+    $employee = $this->db->GetRow($sql);
     return $employee->calcPay();
   }
 }
 
+// Entry point
+$db = new Database();             // We will need a mock db/connection to get employee data.
+$pd = new PayrollDepartment($db); // The PayrollDepartment knows everybody's pay, and it needs a db to do its work.
+
+$error_cnt = 0;
+$error_cnt += $pd->calculateAndVerifySalary(1, 8000); // employee_id 1 is expected to have a salary of 8000
+$error_cnt += $pd->calculateAndVerifySalary(2, 12000);
+$error_cnt += $pd->calculateAndVerifySalary(3, 6000);
+if($error_cnt == 0) {print "Tests complete. No errors.";}
 ?>
